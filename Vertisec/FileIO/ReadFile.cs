@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Vertisec.Util;
 
-namespace Vertisec
+namespace Vertisec.FileIO
 {
     internal class ReadFile
     {
@@ -14,7 +15,7 @@ namespace Vertisec
         private bool validFileExtension(string filePath)
         {
             string fileType = Path.GetExtension(@filePath);
-            return (fileType == ".sql" || fileType == ".txt");
+            return fileType == ".sql" || fileType == ".txt";
         }
 
         private bool fileExists(string filePath)
@@ -32,19 +33,19 @@ namespace Vertisec
 
         public ReadFile(string filePath)
         {
-            this._filePath = @filePath;
+            _filePath = @filePath;
         }
 
         public string[] read(string filePath)
         {
             validateFile(filePath);
-            return System.IO.File.ReadAllLines(@filePath);
+            return File.ReadAllLines(@filePath);
         }
 
         public string[] read()
         {
-            validateFile(this._filePath);
-            return System.IO.File.ReadAllLines(this._filePath);
+            validateFile(_filePath);
+            return File.ReadAllLines(_filePath);
         }
     }
 }
