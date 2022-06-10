@@ -1,4 +1,5 @@
-﻿using Vertisec;
+﻿using Vertisec.FileIO;
+using Vertisec.Tokens;
 
 public class Driver
 {
@@ -6,8 +7,9 @@ public class Driver
     {
         ReadFile file = new ReadFile(@"C:\Users\zach_\Desktop\sampleSQL.sql");
         string[] sqlLines = file.read();
+        List<Token> tokens = Tokenizer.Tokenize(sqlLines);
 
-        foreach (string sqlLine in sqlLines)
-            Console.WriteLine(sqlLine);
+        foreach (Token token in tokens)
+            Console.WriteLine(token.GetText() + " : " + token.GetLineNumber());
     }
 }
