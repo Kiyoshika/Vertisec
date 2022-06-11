@@ -12,22 +12,22 @@ namespace Vertisec.FileIO
     {
         private string _filePath;
 
-        private bool validFileExtension(string filePath)
+        private bool ValidFileExtension(string filePath)
         {
             string fileType = Path.GetExtension(@filePath);
             return fileType == ".sql" || fileType == ".txt";
         }
 
-        private bool fileExists(string filePath)
+        private bool FileExists(string filePath)
         {
             return File.Exists(filePath);
         }
 
-        private void validateFile(string filePath)
+        private void ValidateFile(string filePath)
         {
-            if (!fileExists(@filePath))
+            if (!FileExists(@filePath))
                 InternalErrorMessage.PrintError("File not found.");
-            else if (!validFileExtension(@filePath))
+            else if (!ValidFileExtension(@filePath))
                 InternalErrorMessage.PrintError("Invalid file extension. Must be one of '.sql' or '.txt'");
         }
 
@@ -36,15 +36,15 @@ namespace Vertisec.FileIO
             _filePath = @filePath;
         }
 
-        public string[] read(string filePath)
+        public string[] Read(string filePath)
         {
-            validateFile(filePath);
+            ValidateFile(filePath);
             return File.ReadAllLines(@filePath);
         }
 
-        public string[] read()
+        public string[] Read()
         {
-            validateFile(_filePath);
+            ValidateFile(_filePath);
             return File.ReadAllLines(_filePath);
         }
     }
