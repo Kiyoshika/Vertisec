@@ -9,13 +9,15 @@ namespace Vertisec.Tokens
     public class Tokenizer
     {
         // main keywords
+        // TODO: add missing keywords
         private static HashSet<string> keywords = new HashSet<string> { "select", "from", "where", "join", "group", "by", "as", "order" };
 
-        private static void tokenizeComma(ref List<Token> tokens, string cleanToken, uint lineNumber)
+        // take a delimiter and split string and delimiter into their own tokens, e.g. "mytoken," --> "mytoken" and ","
+        private static void tokenizeString(ref List<Token> tokens, string cleanToken, uint lineNumber, string stringDelimiter)
         {
-            string _token = cleanToken.Substring(0, cleanToken.Length - 1);
+            string _token = cleanToken.Substring(0, cleanToken.Length - stringDelimiter.Length);
             tokens.Add(new Token(_token, lineNumber));
-            tokens.Add(new Token(",", lineNumber));
+            tokens.Add(new Token(stringDelimiter, lineNumber));
         }
         
         public static List<Token> Tokenize(string[] sqlLines)
@@ -38,7 +40,7 @@ namespace Vertisec.Tokens
 
                     // if token contains comma, e.g. "wh_id," split it into two tokens "wh_id" and ","
                     if (cleanToken.IndexOf(',') > 0)
-                        tokenizeComma(ref tokens, cleanToken, lineNumber);
+                        tokenizeString(ref tokens, cleanToken, lineNumber, ",");
                     else
                         tokens.Add(new Token(cleanToken, lineNumber));
                 }
