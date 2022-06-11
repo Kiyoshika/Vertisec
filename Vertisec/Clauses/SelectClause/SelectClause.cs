@@ -56,14 +56,26 @@ namespace Vertisec.Clauses.SelectClause
                     Token asToken = tokenBuffer.Find(tok => tok.GetText() == "as");
 
                     // regular aliasing (select a as b)
-                    if (asToken != null && tokenBuffer.IndexOf(asToken) != 1)
-                        InternalErrorMessage.PrintError("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+                    if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
+                        Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
 
                     /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
 
                     // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        InternalErrorMessage.PrintError("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 3].GetLineNumber() + ". Did you forget a comma?");
+                        Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 3].GetLineNumber() + ". Did you forget a comma?");
+
+                    // no columns specified (e.g. "select from" or "select , from")
+                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
+                        Console.WriteLine("'select' has no columns on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+
+                    // trailing commas such as "select wh_id, from"
+                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex + 1].GetText() == "from")
+                        Console.WriteLine("Trailing comma on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+
+                    // repeated commas such as "select wh_id,,,"
+                    else if (tokenBuffer.Count() == 0)
+                        Console.WriteLine("Repeated commas on line " + this.selectTokens[selectTokenIndex + 1].GetLineNumber());
 
                     tokenBuffer.Clear();
                 }
