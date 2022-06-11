@@ -15,9 +15,22 @@ namespace Vertisec.Tokens
         // take a delimiter and split string and delimiter into their own tokens, e.g. "mytoken," --> "mytoken" and ","
         private static void tokenizeString(ref List<Token> tokens, string cleanToken, uint lineNumber, string stringDelimiter)
         {
-            string _token = cleanToken.Substring(0, cleanToken.Length - stringDelimiter.Length);
-            tokens.Add(new Token(_token, lineNumber));
+            cleanToken = cleanToken.Substring(0, cleanToken.Length - stringDelimiter.Length);
+
+            // incase of repeated delimiters, initially only take up to the first occurrence
+            if (cleanToken.IndexOf(stringDelimiter) > 0) // if delimiter is not the only text on the line
+                tokens.Add(new Token(cleanToken.Substring(0, cleanToken.IndexOf(stringDelimiter)), lineNumber));
+            else
+                tokens.Add(new Token(cleanToken, lineNumber));
+
             tokens.Add(new Token(stringDelimiter, lineNumber));
+
+            // check for repeated delimiters, e.g. select wh_id,,,
+            while (cleanToken.IndexOf(stringDelimiter) > 0)
+            {
+                tokens.Add(new Token(stringDelimiter, lineNumber));
+                cleanToken = cleanToken.Substring(cleanToken.IndexOf(stringDelimiter) + 1);
+            }
         }
         
         public static List<Token> Tokenize(string[] sqlLines)
@@ -32,7 +45,7 @@ namespace Vertisec.Tokens
 
                 foreach(string token in sqlLineSplit)
                 {
-                    string cleanToken = token.Replace("\n", "").Replace("\t", "").Replace("\r", "").Trim();
+                    string cleanToken = token.Replace("\n", "").Replace("\t", "").Replace("\r", "").Replace(" ", "").Trim();
 
                     // if it's a main keyword, force it to lowercase
                     if (keywords.Contains(cleanToken.ToLower()))
@@ -41,7 +54,7 @@ namespace Vertisec.Tokens
                     // if token contains comma, e.g. "wh_id," split it into two tokens "wh_id" and ","
                     if (cleanToken.IndexOf(',') > 0)
                         tokenizeString(ref tokens, cleanToken, lineNumber, ",");
-                    else
+                    else if (cleanToken.Length > 0) // ignore extra whitespaces that still pass through under the replace methods above
                         tokens.Add(new Token(cleanToken, lineNumber));
                 }
                 lineNumber++;
