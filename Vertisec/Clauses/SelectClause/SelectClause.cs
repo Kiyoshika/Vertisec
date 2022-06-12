@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Vertisec.Tokens;
 using Vertisec.Util;
+using Vertisec.Parsers;
 
 namespace Vertisec.Clauses.SelectClause
 {
@@ -41,15 +42,26 @@ namespace Vertisec.Clauses.SelectClause
 
         private void ValidAliasing()
         {
-            // the point of using selectTokenIndex is so we can refer to the previous token in the loop to fetch the proper line number
             int selectTokenIndex = 0;
+            int quoteLength = 0;
             List<Token> tokenBuffer = new List<Token>();
 
             foreach (Token token in this.selectTokens)
             {
                 // skip "select" token
                 if (token.GetText() == "select")
+                {
+                    selectTokenIndex++;
                     continue;
+                }
+
+                // skip tokens if we are inside quotes
+                if (quoteLength > 0)
+                {
+                    quoteLength--;
+                    selectTokenIndex++;
+                    continue;
+                }
 
                 if (token.GetText() == "," || token.GetText() == "from")
                 {
@@ -57,27 +69,34 @@ namespace Vertisec.Clauses.SelectClause
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+                        Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
 
                     // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 3].GetLineNumber() + ". Did you forget a comma?");
+                        Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
 
                     // no columns specified (e.g. "select from" or "select , from")
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
-                        Console.WriteLine("'select' has no columns on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+                        Console.WriteLine("'select' has no columns on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     // trailing commas such as "select wh_id, from"
-                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex + 1].GetText() == "from")
-                        Console.WriteLine("Trailing comma on line " + this.selectTokens[selectTokenIndex].GetLineNumber());
+                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "from")
+                        Console.WriteLine("Trailing comma on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     // repeated commas such as "select wh_id,,,"
                     else if (tokenBuffer.Count() == 0)
-                        Console.WriteLine("Repeated commas on line " + this.selectTokens[selectTokenIndex + 1].GetLineNumber());
+                        Console.WriteLine("Repeated commas on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     tokenBuffer.Clear();
+                }
+                // quote aliasing
+                else if (token.GetText() == "'" || token.GetText() == "\"")
+                {
+                    quoteLength = QuoteParser.ParseQuotes(this.selectTokens, selectTokenIndex);
+                    // add dummy token to represent a parsed quote
+                    tokenBuffer.Add(new Token("[quote]", this.selectTokens[selectTokenIndex].GetLineNumber()));
                 }
                 else
                     tokenBuffer.Add(token);
