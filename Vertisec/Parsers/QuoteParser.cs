@@ -15,11 +15,11 @@ namespace Vertisec.Parsers
         public static int ParseQuotes(List<Token> tokens, int selectTokenIndex)
         {
             Token beginQuote = tokens[selectTokenIndex];
-
             int quoteLength = 0;
+
             for (int i = selectTokenIndex + 1; i < tokens.Count(); ++i)
             {
-                if (tokens[i].GetText() == "'" || tokens[i].GetText() == "\"")
+                if (tokens[i].GetText() == beginQuote.GetText())
                     return quoteLength + 1;
                 quoteLength++;
             }

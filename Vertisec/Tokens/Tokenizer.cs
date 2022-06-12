@@ -67,7 +67,7 @@ namespace Vertisec.Tokens
                 tokens.Add(new Token(cleanToken, lineNumber));
             }
 
-            if (cleanToken[cleanToken.Length - 1] == '\"') // quote is at end of token
+            if (cleanToken.Length >= 1 && cleanToken[cleanToken.Length - 1] == '\"') // quote is at end of token
             {
                 cleanToken = cleanToken.Substring(0, cleanToken.Length - 1);
                 tokens.Add(new Token(cleanToken, lineNumber));
@@ -99,7 +99,7 @@ namespace Vertisec.Tokens
                     else if (cleanToken.IndexOf("'") >= 0)
                         TokenizeSingleQuote(ref tokens, cleanToken, lineNumber);
                     else if (cleanToken.IndexOf("\"") >= 0)
-                        TokenizeSingleQuote(ref tokens, cleanToken, lineNumber);
+                        TokenizeDoubleQuote(ref tokens, cleanToken, lineNumber);
                     else if (cleanToken.Length > 0) // ignore extra whitespaces that still pass through under the replace methods above
                         tokens.Add(new Token(cleanToken, lineNumber));
                 }
