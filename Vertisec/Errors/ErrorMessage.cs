@@ -13,15 +13,15 @@ namespace Vertisec.Errors
     {
         public static void PrintError(Token errorToken, string errorMessage)
         {
-            uint plusMinusNLines = Globals.GetErrorDisplayLines();
+            int plusMinusNLines = Globals.GetErrorDisplayLines();
             string[] originalSQL = Globals.GetOriginalSQL();
 
             // display +/- plusMinusNLines of the original SQL when displaying error message
-            uint errorLineNumber = errorToken.GetLineNumber();
-            uint lowerBound = (errorLineNumber - plusMinusNLines) < 0 ? 0 : (errorLineNumber - plusMinusNLines);
-            uint upperBound = (errorLineNumber + plusMinusNLines) > originalSQL.Length ? (uint)originalSQL.Length : (errorLineNumber + plusMinusNLines);
+            int errorLineNumber = (int)errorToken.GetLineNumber(); // this will only cause problems if there's a SQL query with over 2 billion lines... unlikely
+            int lowerBound = (errorLineNumber - plusMinusNLines) < 0 ? 0 : (errorLineNumber - plusMinusNLines);
+            int upperBound = (errorLineNumber + plusMinusNLines) > originalSQL.Length ? originalSQL.Length : (errorLineNumber + plusMinusNLines);
 
-            for (uint i = lowerBound; i < upperBound; ++i)
+            for (int i = lowerBound; i < upperBound; ++i)
             {
                 if ((i+1) == errorToken.GetLineNumber())
                 {
@@ -30,11 +30,11 @@ namespace Vertisec.Errors
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 else
-                    Console.WriteLine("    " + (i+1) + ": " + originalSQL[i]);
+                    Console.WriteLine("    " + (i + 1) + ": " + originalSQL[i]);
             }
 
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("\nError on line " + errorToken.GetLineNumber() + ": " + errorMessage);
+            Console.WriteLine("\nError on line " + errorToken.GetLineNumber() + ": " + errorMessage + "\n");
             Console.ForegroundColor = ConsoleColor.Gray;
         }
     }

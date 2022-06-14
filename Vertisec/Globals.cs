@@ -9,7 +9,7 @@ namespace Vertisec
     public class Globals
     {
         private static string[] originalSQL;
-        private static uint errorDisplayLines = 3;
+        private static int errorDisplayLines = 3;
 
         public static void SetOriginalSQL(string[] originalSQL)
         {
@@ -21,7 +21,7 @@ namespace Vertisec
             return Globals.originalSQL;
         }
 
-        public static uint GetErrorDisplayLines()
+        public static int GetErrorDisplayLines()
         {
             return Globals.errorDisplayLines;
         }
