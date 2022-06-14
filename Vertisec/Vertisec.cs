@@ -9,19 +9,19 @@ using Vertisec.FileIO;
 using Vertisec.Clauses;
 using Vertisec.Util;
 using Vertisec.Clauses.SelectClause;
+using Vertisec;
 
 namespace Vertisec
 {
     public class Vertisec
     {
-        private string[] originalSQL;
         private List<Token> tokens;
         public List<Clauses.Clauses> clauses = new List<Clauses.Clauses>();
         public Vertisec(string filepath)
         {
             ReadFile file = new ReadFile(filepath);
             string[] sqlLines = file.Read();
-            this.originalSQL = sqlLines;
+            Globals.SetOriginalSQL(sqlLines);
             tokens = Tokenizer.Tokenize(sqlLines);
         }
 
@@ -45,7 +45,7 @@ namespace Vertisec
 
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        selectClause.BuildClause(ref this.tokens, this.originalSQL);
+                        selectClause.BuildClause(ref this.tokens);
                         clauses.Add(selectClause);
                         break;
 
