@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Vertisec.Tokens;
 using Vertisec.Util;
 using Vertisec.Parsers;
+using Vertisec.Errors;
 
 namespace Vertisec.Clauses.SelectClause
 {
@@ -21,6 +22,7 @@ namespace Vertisec.Clauses.SelectClause
     internal class SelectClause : Clauses
     {
         private List<Token> selectTokens = new List<Token>();
+        private static uint errorLineNumbers = 3; // display +/- 2 lines of the original SQL when displaying error messages
 
         private void FromTokenExists(ref List<Token> tokens)
         {
@@ -76,13 +78,15 @@ namespace Vertisec.Clauses.SelectClause
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - 1], SelectClause.errorLineNumbers, "Improper column aliasing with 'as'.");
+                        //Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
 
                     // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
+                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2], SelectClause.errorLineNumbers, "Improper column aliasing. Did you forget a comma?");
+                        //Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
 
                     // no columns specified (e.g. "select from" or "select , from")
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
@@ -117,9 +121,9 @@ namespace Vertisec.Clauses.SelectClause
             return this.selectTokens;
         }
 
-        public override void BuildClause(ref List<Token> tokens)
+        public override void BuildClause(ref List<Token> tokens, string[] originalSQL)
         {
-            // TODO: implement the proper error message which highlights the original SQL and line number
+            base.SetOriginalSQL(originalSQL);
             FromTokenExists(ref tokens);
             ValidAliasing();
         }

@@ -11,6 +11,7 @@ namespace Vertisec.Tokens
         // main keywords
         // TODO: add missing keywords
         private static HashSet<string> keywords = new HashSet<string> { "select", "from", "where", "join", "group", "by", "as", "order" };
+        private static HashSet<string> sqlstart = new HashSet<string> { "select", "drop", "create", "with" };
 
         // take a delimiter and split string and delimiter into their own tokens, e.g. "mytoken," --> "mytoken" and ","
         private static void TokenizeComma(ref List<Token> tokens, string cleanToken, uint lineNumber)
@@ -132,6 +133,13 @@ namespace Vertisec.Tokens
                 lineNumber++;
             }
             return tokens;
+        }
+        public static bool sqlStartCheck(string sqlLine)
+        {
+            if (sqlstart.Contains(sqlLine))
+                return true;
+            else
+                return false;
         }
     }
 }
