@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Vertisec.Tokens;
 using Vertisec.Util;
 using Vertisec.Parsers;
+using Vertisec.Errors;
 
 namespace Vertisec.Clauses.SelectClause
 {
@@ -15,12 +16,13 @@ namespace Vertisec.Clauses.SelectClause
      * 1. Check that a "from" token exists
      * 2. If no "as" token is present, field length must be 2 (shorthand aliasing)
      * 3. If "as" token is present, must be token to left and right (regular aliasing)
-     * 4. TODO: quote parsing
-     * 5. TODO: shorthand cast parsing, e.g. abc::int -- would use a separate parser (like quotes) to check valid cast types
+     * 4. quote parsing
+     * 5. shorthand cast parsing, e.g. abc::int -- would use a separate parser (like quotes) to check valid cast types
      */
     internal class SelectClause : Clauses
     {
         private List<Token> selectTokens = new List<Token>();
+        private static uint errorLineNumbers = 3; // display +/- 2 lines of the original SQL when displaying error messages
 
         private void FromTokenExists(ref List<Token> tokens)
         {
@@ -48,6 +50,7 @@ namespace Vertisec.Clauses.SelectClause
 
             foreach (Token token in this.selectTokens)
             {
+
                 // skip "select" token
                 if (token.GetText() == "select")
                 {
@@ -63,19 +66,27 @@ namespace Vertisec.Clauses.SelectClause
                     continue;
                 }
 
-                if (token.GetText() == "," || token.GetText() == "from")
+                // shorthand type casting (e.g. select tran_qty::int)
+                if (token.GetText() == ":")
+                {
+                    CastParser.Parse(this.selectTokens, selectTokenIndex);
+                    quoteLength = 2; // skip two tokens after a successful cast: {a, :, :, int}
+                }
+                else if (token.GetText() == "," || token.GetText() == "from")
                 {
                     Token asToken = tokenBuffer.Find(tok => tok.GetText() == "as");
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - 1], SelectClause.errorLineNumbers, "Improper column aliasing with 'as'.");
+                        //Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
 
                     // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
+                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2], SelectClause.errorLineNumbers, "Improper column aliasing. Did you forget a comma?");
+                        //Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
 
                     // no columns specified (e.g. "select from" or "select , from")
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
@@ -94,7 +105,7 @@ namespace Vertisec.Clauses.SelectClause
                 // quote aliasing
                 else if (token.GetText() == "'" || token.GetText() == "\"")
                 {
-                    quoteLength = QuoteParser.ParseQuotes(this.selectTokens, selectTokenIndex);
+                    quoteLength = QuoteParser.Parse(this.selectTokens, selectTokenIndex);
                     // add dummy token to represent a parsed quote
                     tokenBuffer.Add(new Token("[quote]", this.selectTokens[selectTokenIndex].GetLineNumber()));
                 }
@@ -110,9 +121,9 @@ namespace Vertisec.Clauses.SelectClause
             return this.selectTokens;
         }
 
-        public override void BuildClause(ref List<Token> tokens)
+        public override void BuildClause(ref List<Token> tokens, string[] originalSQL)
         {
-            // TODO: implement the proper error message which highlights the original SQL and line number
+            base.SetOriginalSQL(originalSQL);
             FromTokenExists(ref tokens);
             ValidAliasing();
         }
