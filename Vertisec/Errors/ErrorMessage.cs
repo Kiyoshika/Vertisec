@@ -5,13 +5,17 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Vertisec.Tokens;
+using Vertisec;
 
 namespace Vertisec.Errors
 {
     public class ErrorMessage
     {
-        public static void PrintError(string[] originalSQL, Token errorToken, uint plusMinusNLines, string errorMessage)
+        public static void PrintError(Token errorToken, string errorMessage)
         {
+            uint plusMinusNLines = Globals.GetErrorDisplayLines();
+            string[] originalSQL = Globals.GetOriginalSQL();
+
             // display +/- plusMinusNLines of the original SQL when displaying error message
             uint errorLineNumber = errorToken.GetLineNumber();
             uint lowerBound = (errorLineNumber - plusMinusNLines) < 0 ? 0 : (errorLineNumber - plusMinusNLines);

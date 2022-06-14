@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 using Vertisec.Util;
 using Vertisec.Tokens;
+using Vertisec.Errors;
+using Vertisec;
 
 
 namespace Vertisec.Parsers
@@ -24,7 +26,7 @@ namespace Vertisec.Parsers
                 quoteLength++;
             }
             
-            Console.WriteLine("Missing end quote on line " + beginQuote.GetLineNumber());
+            ErrorMessage.PrintError(beginQuote, "Missing end quote.");
             return 0;
         }
     }

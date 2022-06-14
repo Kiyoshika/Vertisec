@@ -8,6 +8,7 @@ using Vertisec.Tokens;
 using Vertisec.Util;
 using Vertisec.Parsers;
 using Vertisec.Errors;
+using Vertisec;
 
 namespace Vertisec.Clauses.SelectClause
 {
@@ -22,12 +23,11 @@ namespace Vertisec.Clauses.SelectClause
     internal class SelectClause : Clauses
     {
         private List<Token> selectTokens = new List<Token>();
-        private static uint errorLineNumbers = 3; // display +/- 2 lines of the original SQL when displaying error messages
 
         private void FromTokenExists(ref List<Token> tokens)
         {
             List<Token> tokensCopy = tokens.ToList<Token>();
-            Token beginning_token = tokensCopy[0];
+            Token beginningToken = tokensCopy[0];
             foreach (Token token in tokensCopy)
             {
                 // transfer tokens from "main" token pool to this select clause
@@ -39,7 +39,7 @@ namespace Vertisec.Clauses.SelectClause
 
             }
 
-            InternalErrorMessage.PrintError("'select' is missing 'from' token on line " + beginning_token.GetLineNumber());
+            ErrorMessage.PrintError(beginningToken, "Improper column aliasing with 'as'.");
         }
 
         private void ValidAliasing()
@@ -78,27 +78,27 @@ namespace Vertisec.Clauses.SelectClause
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - 1], SelectClause.errorLineNumbers, "Improper column aliasing with 'as'.");
+                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Improper column aliasing with 'as'.");
                         //Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
 
                     /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
 
                     // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        ErrorMessage.PrintError(base.GetOriginalSQL(), this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2], SelectClause.errorLineNumbers, "Improper column aliasing. Did you forget a comma?");
+                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2], "Improper column aliasing. Did you forget a comma?");
                         //Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
 
                     // no columns specified (e.g. "select from" or "select , from")
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
-                        Console.WriteLine("'select' has no columns on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "'select' has no columns.");
 
                     // trailing commas such as "select wh_id, from"
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "from")
-                        Console.WriteLine("Trailing comma on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Trailing comma.");
 
                     // repeated commas such as "select wh_id,,,"
                     else if (tokenBuffer.Count() == 0)
-                        Console.WriteLine("Repeated commas on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Repeated commas.");
 
                     tokenBuffer.Clear();
                 }
@@ -121,9 +121,8 @@ namespace Vertisec.Clauses.SelectClause
             return this.selectTokens;
         }
 
-        public override void BuildClause(ref List<Token> tokens, string[] originalSQL)
+        public override void BuildClause(ref List<Token> tokens)
         {
-            base.SetOriginalSQL(originalSQL);
             FromTokenExists(ref tokens);
             ValidAliasing();
         }
