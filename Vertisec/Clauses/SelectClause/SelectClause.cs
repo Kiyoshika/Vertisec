@@ -15,8 +15,8 @@ namespace Vertisec.Clauses.SelectClause
      * 1. Check that a "from" token exists
      * 2. If no "as" token is present, field length must be 2 (shorthand aliasing)
      * 3. If "as" token is present, must be token to left and right (regular aliasing)
-     * 4. TODO: quote parsing
-     * 5. TODO: shorthand cast parsing, e.g. abc::int -- would use a separate parser (like quotes) to check valid cast types
+     * 4. quote parsing
+     * 5. shorthand cast parsing, e.g. abc::int -- would use a separate parser (like quotes) to check valid cast types
      */
     internal class SelectClause : Clauses
     {
@@ -48,6 +48,7 @@ namespace Vertisec.Clauses.SelectClause
 
             foreach (Token token in this.selectTokens)
             {
+
                 // skip "select" token
                 if (token.GetText() == "select")
                 {
@@ -63,7 +64,13 @@ namespace Vertisec.Clauses.SelectClause
                     continue;
                 }
 
-                if (token.GetText() == "," || token.GetText() == "from")
+                // shorthand type casting (e.g. select tran_qty::int)
+                if (token.GetText() == ":")
+                {
+                    CastParser.Parse(this.selectTokens, selectTokenIndex);
+                    quoteLength = 2; // skip two tokens after a successful cast: {a, :, :, int}
+                }
+                else if (token.GetText() == "," || token.GetText() == "from")
                 {
                     Token asToken = tokenBuffer.Find(tok => tok.GetText() == "as");
 
@@ -94,7 +101,7 @@ namespace Vertisec.Clauses.SelectClause
                 // quote aliasing
                 else if (token.GetText() == "'" || token.GetText() == "\"")
                 {
-                    quoteLength = QuoteParser.ParseQuotes(this.selectTokens, selectTokenIndex);
+                    quoteLength = QuoteParser.Parse(this.selectTokens, selectTokenIndex);
                     // add dummy token to represent a parsed quote
                     tokenBuffer.Add(new Token("[quote]", this.selectTokens[selectTokenIndex].GetLineNumber()));
                 }
