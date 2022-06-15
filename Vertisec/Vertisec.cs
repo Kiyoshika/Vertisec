@@ -9,6 +9,7 @@ using Vertisec.FileIO;
 using Vertisec.Clauses;
 using Vertisec.Util;
 using Vertisec.Clauses.SelectClause;
+using Vertisec.Clauses.WhereClause;
 using Vertisec;
 
 namespace Vertisec
@@ -37,16 +38,29 @@ namespace Vertisec
             if (!validStartToken)
                 InternalErrorMessage.PrintError("SQL file missing starting keyword drop, create, with, select");
 
-
+            int startIndex = 0, skipTokens = 0;
             foreach (Token token in tokensCopy)
             {
+                // after parsing an expression, skip over tokens we've already encountered before
+                // entering next clause
+                while (skipTokens > 0)
+                {
+                    startIndex++;
+                    skipTokens--;
+                }
+
                 switch (token.GetText())
                 {
-
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        selectClause.BuildClause(ref this.tokens);
+                        skipTokens = selectClause.BuildClause(this.tokens, startIndex) - 1;
                         clauses.Add(selectClause);
+                        break;
+
+                    case "where":
+                        WhereClause whereClause = new WhereClause();
+                        skipTokens = whereClause.BuildClause(this.tokens, startIndex) - 1;
+                        clauses.Add(whereClause);
                         break;
 
                     default:
