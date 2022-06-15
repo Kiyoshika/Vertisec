@@ -16,5 +16,8 @@ public class Driver
         }
         Vertisec.Vertisec vertisec = new Vertisec.Vertisec(filepath);
         vertisec.BuildClauses();
+
+        //temporary Validation of execution complete
+        Console.WriteLine("Execution Complete");
     }
 }
