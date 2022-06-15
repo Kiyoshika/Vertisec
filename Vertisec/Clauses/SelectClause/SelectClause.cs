@@ -39,7 +39,7 @@ namespace Vertisec.Clauses.SelectClause
 
             }
 
-            ErrorMessage.PrintError(beginningToken, "Improper column aliasing with 'as'.");
+            ErrorMessage.PrintError(beginningToken, "'from' token for 'select' not found.");
         }
 
         private void ValidAliasing()
