@@ -9,6 +9,7 @@ using Vertisec.FileIO;
 using Vertisec.Clauses;
 using Vertisec.Util;
 using Vertisec.Clauses.SelectClause;
+using Vertisec.Clauses.FromClause;
 using Vertisec.Clauses.WhereClause;
 using Vertisec;
 
@@ -24,6 +25,9 @@ namespace Vertisec
             string[] sqlLines = file.Read();
             Globals.SetOriginalSQL(sqlLines);
             tokens = Tokenizer.Tokenize(sqlLines);
+
+            //foreach (Token token in tokens)
+                //Console.WriteLine(token.GetText() + ' ' + token.GetLineNumber());
         }
 
         public void BuildClauses()
@@ -57,6 +61,12 @@ namespace Vertisec
                         clauses.Add(selectClause);
                         break;
 
+                    case "from":
+                        FromClause fromClause = new FromClause();
+                        skipTokens = fromClause.BuildClause(tokens, startIndex) - 1;
+                        clauses.Add(fromClause);
+                        break;
+
                     case "where":
                         WhereClause whereClause = new WhereClause();
                         skipTokens = whereClause.BuildClause(this.tokens, startIndex) - 1;
@@ -66,6 +76,8 @@ namespace Vertisec
                     default:
                         break;
                 }
+
+                //Console.WriteLine(token.GetText() + ' ' + tokensCopy.IndexOf(token));
             }
         }
 
