@@ -16,6 +16,7 @@ namespace Vertisec.Clauses.WhereClause
         {
             "order",
             "group",
+            "having",
             "limit"
         };
         
@@ -41,13 +42,13 @@ namespace Vertisec.Clauses.WhereClause
         // take token buffer and rearrange tokens if the logical was misplaced
         // e.g. "= a b" --> "a = b"
         // logical token will be in middle, left/right tokens will be in 0/2 index respectively.
-        private string[] rearrangedTokens(List<Token> tokenBuffer)
+        private string[] rearrangedTokens(List<Token> tokenBuffer, HashSet<string> conditionalTokens)
         {
             string[] tokens = new string[3];
 
             int logicalIndex = 0;
             foreach (Token _token in tokenBuffer)
-                if (mathConditionalTokens.Contains(_token.GetText()))
+                if (conditionalTokens.Contains(_token.GetText()))
                     break;
                 else
                     logicalIndex++;
@@ -78,13 +79,21 @@ namespace Vertisec.Clauses.WhereClause
             return tokens;
         }
 
+        //
+        //
+        // TODO: fix multiple conditions (e.g. chaining with and & or)
+        //
+        //
         private void ValidateConditions()
         {
             int whereTokenIndex = 0;
+            int remainingTokens = this.whereTokens.Count();
             List<Token> tokenBuffer = new List<Token>();
 
+            // NOTE: need the extra +1 to build the token buffer of 3 in case there are exactly 3 tokens
             for (int i = 0; i < this.whereTokens.Count() + 1; ++i)
             {
+
                 // skip "where" token
                 if (i < this.whereTokens.Count() && this.whereTokens[i].GetText() == "where")
                 {
@@ -92,11 +101,33 @@ namespace Vertisec.Clauses.WhereClause
                     continue;
                 }
 
-                // conditions should always be three tokens long with the logical in the middle
+                // negated conditions "A not like B"
                 // only special case are parenthesis which we'll worry about later...
-                if (tokenBuffer.Count() == 3)
+                if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
                 {
+                    if (tokenBuffer[1].GetText() != "not")
+                        ErrorMessage.PrintError(tokenBuffer[1], "Negation token 'not' is in the incorrect position.");
+                    else if (tokenBuffer[1].GetText() == "not")
+                    {
+                        // not like, not ilike, not in, etc.
+                        if (!wordConditionalTokens.Contains(tokenBuffer[2].GetText()) && tokenBuffer[2].GetText() != "not") // avoiding "not not"
+                            ErrorMessage.PrintError(tokenBuffer[2], "Invalid negation condition. Expecing 'not like', 'not ilike', 'not in', etc.");
+                    }
+                }
+
+                else if (tokenBuffer.Count() == 3 && remainingTokens - tokenBuffer.Count() == 0 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
+                {
+                    Token notToken = tokenBuffer.Find(tok => tok.GetText() == "not");
+                    ErrorMessage.PrintError(notToken, "Incomplete/incorrect negation condition. Expecting 'not like', 'not ilike', 'not in', etc.");
+                }
+
+                // standard conditions (three tokens) -- A = B
+                // only special case are parenthesis which we'll worry about later...
+                else if (tokenBuffer.Count() == 3 && tokenBuffer.Find(tok => tok.GetText() == "not") == null)
+                {
+                    remainingTokens -= tokenBuffer.Count();
                     int mathLogicalCount = 0, wordLogicalCount = 0;
+
                     foreach (Token _token in tokenBuffer)
                     {
                         if (mathConditionalTokens.Contains(_token.GetText()))
@@ -111,69 +142,35 @@ namespace Vertisec.Clauses.WhereClause
                     // logical should be in middle of condition (e.g A = B)
                     if (mathLogicalCount == 1 && !mathConditionalTokens.Contains(tokenBuffer[1].GetText()))
                     {
-                        int logicalIndex = 0;
-                        foreach (Token _token in tokenBuffer)
-                            if (mathConditionalTokens.Contains(_token.GetText()))
-                                break;
-                            else
-                                logicalIndex++;
-
-                        // default values
-                        string leftToken = tokenBuffer[0].GetText();
-                        string logicalToken = tokenBuffer[1].GetText();
-                        string rightToken = tokenBuffer[2].GetText();
-
-                        // rearrange token values if the logical is misplaced (used in the error message)
-                        if (logicalIndex == 0)
-                        {
-                            logicalToken = tokenBuffer[0].GetText();
-                            leftToken = tokenBuffer[1].GetText();
-                            rightToken = tokenBuffer[2].GetText();
-                        }
-                        else if (logicalIndex == 2)
-                        {
-                            logicalToken = tokenBuffer[2].GetText();
-                            leftToken = tokenBuffer[0].GetText();
-                            rightToken = tokenBuffer[1].GetText();
-                        }
-
-                        ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + leftToken + " " + logicalToken + " " + rightToken + "'?");
+                        string[] _rearrangedTokens = rearrangedTokens(tokenBuffer, mathConditionalTokens);
+                        ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?");
                     }
                     else if (wordLogicalCount == 1 && !wordConditionalTokens.Contains(tokenBuffer[1].GetText()))
                     {
-                        int logicalIndex = 0;
-                        foreach (Token _token in tokenBuffer)
-                            if (wordConditionalTokens.Contains(_token.GetText()))
-                                break;
-                            else
-                                logicalIndex++;
-
-                        // default values
-                        string leftToken = tokenBuffer[0].GetText();
-                        string logicalToken = tokenBuffer[1].GetText();
-                        string rightToken = tokenBuffer[2].GetText();
-
-                        // rearrange token values if the logical is misplaced (used in the error message)
-                        if (logicalIndex == 0)
-                        {
-                            logicalToken = tokenBuffer[0].GetText();
-                            leftToken = tokenBuffer[1].GetText();
-                            rightToken = tokenBuffer[2].GetText();
-                        }
-                        else if (logicalIndex == 2)
-                        {
-                            logicalToken = tokenBuffer[2].GetText();
-                            leftToken = tokenBuffer[0].GetText();
-                            rightToken = tokenBuffer[1].GetText();
-                        }
-
-                        ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + leftToken + " " + logicalToken + " " + rightToken + "'?");
+                        string[] _rearrangedTokens = rearrangedTokens(tokenBuffer, wordConditionalTokens);
+                        ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?");
                     }
+                    
+                    // validate correct logicals being used, e.g A = B instead of A == B
+                    else if (wordLogicalCount == 0 && mathLogicalCount == 0)
+                    {
+                        ErrorMessage.PrintError(tokenBuffer[1], "Incorrect logical expression. Expecting '=', '<', '<=', etc.");
+                    }
+
+                    // validate logical chain keyword (if we still having remaining tokens) -- should be either 'and' or 'or'
+                    if (remainingTokens > 0 && !conditionChainWords.Contains(this.whereTokens[whereTokenIndex].GetText()))
+                        ErrorMessage.PrintError(this.whereTokens[whereTokenIndex], "Incorrect condition chain keyword. Should be either 'and' or 'or'.");
+
+                    tokenBuffer.Clear();
+                    //whereTokenIndex++;
                 }
                 else
                 {
-                    tokenBuffer.Add(this.whereTokens[i]);
-                    whereTokenIndex++;
+                    if (i < this.whereTokens.Count())
+                    {
+                        tokenBuffer.Add(this.whereTokens[i]);
+                        whereTokenIndex++;
+                    }
                 }
             }
         }
