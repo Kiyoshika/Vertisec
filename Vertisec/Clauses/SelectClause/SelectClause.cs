@@ -121,10 +121,11 @@ namespace Vertisec.Clauses.SelectClause
             return this.selectTokens;
         }
 
-        public override void BuildClause(ref List<Token> tokens)
+        public override int BuildClause(List<Token> tokens, int startIndex)
         {
             FromTokenExists(ref tokens);
             ValidAliasing();
+            return this.selectTokens.Count();
         }
     }
 }

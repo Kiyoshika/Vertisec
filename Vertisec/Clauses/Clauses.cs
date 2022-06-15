@@ -11,6 +11,6 @@ namespace Vertisec.Clauses
     public abstract class Clauses
     {
         public abstract List<Token> GetTokens();
-        public abstract void BuildClause(ref List<Token> tokens);
+        public abstract int BuildClause(List<Token> tokens, int startIndex);
     }
 }
