@@ -109,6 +109,11 @@ namespace Vertisec.Clauses.SelectClause
                     // add dummy token to represent a parsed quote
                     tokenBuffer.Add(new Token("[quote]", this.selectTokens[selectTokenIndex].GetLineNumber()));
                 }
+                else if (token.GetText() == "(" || token.GetText() == ")")
+                {
+                    Tuple<List<Token>, int> parenthesis = ParenthesisParser.Parse(this.selectTokens, selectTokenIndex, this.selectTokens[selectTokenIndex].GetText().ToCharArray()[0]);
+                    quoteLength = parenthesis.Item2;
+                }
                 else
                     tokenBuffer.Add(token);
 

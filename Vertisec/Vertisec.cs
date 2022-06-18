@@ -8,6 +8,7 @@ using Vertisec.Tokens;
 using Vertisec.FileIO;
 using Vertisec.Clauses;
 using Vertisec.Util;
+using Vertisec.Parsers;
 using Vertisec.Clauses.SelectClause;
 using Vertisec.Clauses.FromClause;
 using Vertisec.Clauses.WhereClause;
@@ -41,34 +42,36 @@ namespace Vertisec
             if (!validStartToken)
                 InternalErrorMessage.PrintError("SQL file missing starting keyword drop, create, with, select");
 
-            int startIndex = 0, skipTokens = 0;
-            foreach (Token token in tokensCopy)
+            //foreach (Token token in tokensCopy)
+            for (int i = 0; i < tokensCopy.Count(); i++)
             {
-                // after parsing an expression, skip over tokens we've already encountered before
-                // entering next clause
-                while (skipTokens > 0)
+                switch (tokensCopy[i].GetText())
                 {
-                    startIndex++;
-                    skipTokens--;
-                }
+                    case "(":
+                        Tuple<List<Token>, int> openParenthesis = ParenthesisParser.Parse(tokensCopy, i, '(');
+                        i += openParenthesis.Item2;
+                        break;
 
-                switch (token.GetText())
-                {
+                    case ")":
+                        Tuple<List<Token>, int> closedParenthesis = ParenthesisParser.Parse(tokensCopy, i, ')');
+                        i += closedParenthesis.Item2;
+                        break;
+
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        skipTokens = selectClause.BuildClause(this.tokens, startIndex) - 1;
+                        i += selectClause.BuildClause(this.tokens, i);
                         clauses.Add(selectClause);
                         break;
 
                     case "from":
                         FromClause fromClause = new FromClause();
-                        skipTokens = fromClause.BuildClause(tokens, startIndex) - 1;
+                        i += fromClause.BuildClause(tokens, i);
                         clauses.Add(fromClause);
                         break;
 
                     case "where":
                         WhereClause whereClause = new WhereClause();
-                        skipTokens = whereClause.BuildClause(this.tokens, startIndex) - 1;
+                        i += whereClause.BuildClause(this.tokens, i);
                         clauses.Add(whereClause);
                         break;
 
