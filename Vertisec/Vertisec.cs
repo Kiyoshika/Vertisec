@@ -26,9 +26,6 @@ namespace Vertisec
             string[] sqlLines = file.Read();
             Globals.SetOriginalSQL(sqlLines);
             tokens = Tokenizer.Tokenize(sqlLines);
-
-            //foreach (Token token in tokens)
-                //Console.WriteLine(token.GetText() + ' ' + token.GetLineNumber());
         }
 
         public void BuildClauses()

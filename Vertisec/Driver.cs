@@ -17,6 +17,11 @@ public class Driver
         Vertisec.Vertisec vertisec = new Vertisec.Vertisec(filepath);
         vertisec.BuildClauses();
 
+        foreach (Token token in vertisec.tokens_copy)
+        {
+            Console.WriteLine(token.GetText());
+        }
+
         //temporary Validation of execution complete
         Console.WriteLine("Execution Complete");
     }

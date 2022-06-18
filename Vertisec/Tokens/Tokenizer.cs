@@ -12,17 +12,22 @@ namespace Vertisec.Tokens
         // TODO: add missing keywords
         private static HashSet<string> keywords = new HashSet<string> { "select", "from", "where", "join", "group", "by", "as", "order" };
         private static HashSet<string> sqlstart = new HashSet<string> { "select", "drop", "create", "with" };
-        private static HashSet<string> specialTokens = new HashSet<string> {"(", ")", ":", "\"", "'", "," }; // NOTE: this orders special token highest -> lowest precedence
+        private static HashSet<string> specialTokens = new HashSet<string> { ":", "(", ")", "\"", "'", "," }; // NOTE: this orders special token highest -> lowest precedence
         
         private static bool ContainsSpecialToken(string cleanToken, ref string specialToken)
         {
             bool isContained = false;
+            int minIndex = cleanToken.Length;
             foreach (string token in specialTokens)
             {
                 if (cleanToken.Contains(token))
                 {
-                    specialToken = token;
-                    return true;
+                    if (cleanToken.IndexOf(token) < minIndex)
+                    {
+                        specialToken = token;
+                        minIndex = cleanToken.IndexOf(token);
+                    }
+                    isContained = true;
                 }
             }
             return isContained;
