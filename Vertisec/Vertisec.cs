@@ -17,6 +17,7 @@ namespace Vertisec
     public class Vertisec
     {
         private List<Token> tokens;
+        public List<Token> tokens_copy;
         public List<Clauses.Clauses> clauses = new List<Clauses.Clauses>();
         public Vertisec(string filepath)
         {
@@ -29,6 +30,7 @@ namespace Vertisec
         public void BuildClauses()
         {
             List<Token> tokensCopy = this.tokens.ToList<Token>();
+            this.tokens_copy = tokensCopy;
 
             bool validStartToken = false;
             foreach (Token token in tokensCopy)
