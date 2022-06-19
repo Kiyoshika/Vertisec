@@ -12,9 +12,9 @@ namespace Vertisec.Tokens
         // TODO: add missing keywords
         private static HashSet<string> keywords = new HashSet<string> { "select", "from", "where", "join", "group", "by", "as", "order" };
         private static HashSet<string> sqlstart = new HashSet<string> { "select", "drop", "create", "with" };
-        private static HashSet<string> specialTokens = new HashSet<string> { ":", "(", ")", "\"", "'", "," }; // NOTE: this orders special token highest -> lowest precedence
+        protected static HashSet<string> specialTokens = new HashSet<string> { ":", "(", ")", "\"", "'", "," }; // NOTE: this orders special token highest -> lowest precedence
         
-        private static bool ContainsSpecialToken(string cleanToken, ref string specialToken)
+        protected static bool ContainsSpecialToken(string cleanToken, ref string specialToken)
         {
             bool isContained = false;
             int minIndex = cleanToken.Length;
@@ -33,7 +33,7 @@ namespace Vertisec.Tokens
             return isContained;
         }
 
-        private static void SplitToken(ref List<Token> tokens, string cleanToken, uint lineNumber)
+        protected static void SplitToken(ref List<Token> tokens, string cleanToken, uint lineNumber)
         {
             string specialToken = "";
             while (ContainsSpecialToken(cleanToken, ref specialToken))
