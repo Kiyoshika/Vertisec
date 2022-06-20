@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 using Vertisec.Tokens;
 
 namespace VertisecTests.Tokens
@@ -16,6 +18,7 @@ namespace VertisecTests.Tokens
         {
             string specialToken = "";
             Tokenizer tokenizer = new Tokenizer();
+            
             foreach (string tokenText in Tokenizer.specialTokens)
             {
                 Assert.IsTrue(Tokenizer.ContainsSpecialToken(tokenText, ref specialToken));
