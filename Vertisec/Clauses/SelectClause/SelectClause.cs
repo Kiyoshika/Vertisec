@@ -8,6 +8,7 @@ using Vertisec.Tokens;
 using Vertisec.Util;
 using Vertisec.Parsers;
 using Vertisec.Errors;
+using Vertisec.Exceptions;
 using Vertisec;
 
 namespace Vertisec.Clauses.SelectClause
@@ -20,7 +21,7 @@ namespace Vertisec.Clauses.SelectClause
      * 4. quote parsing
      * 5. shorthand cast parsing, e.g. abc::int -- would use a separate parser (like quotes) to check valid cast types
      */
-    internal class SelectClause : Clauses
+    public class SelectClause : Clauses
     {
         private List<Token> selectTokens = new List<Token>();
 
@@ -39,7 +40,7 @@ namespace Vertisec.Clauses.SelectClause
 
             }
 
-            ErrorMessage.PrintError(beginningToken, "'from' token for 'select' not found.");
+            throw new SelectClauseException("'from' token for 'select' not found.", beginningToken);
         }
 
         private void ValidAliasing()
@@ -78,27 +79,23 @@ namespace Vertisec.Clauses.SelectClause
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Improper column aliasing with 'as'.");
-                        //Console.WriteLine("Improper column aliasing with 'as' on line " + this.selectTokens[selectTokenIndex - 1].GetLineNumber());
+                        throw new SelectClauseException("Improper column aliasing with 'as'.", this.selectTokens[selectTokenIndex - 1]);
 
-                    /** SIDE NOTE: after parsing quotes and casts, reduce their tokens to a length of at most three, e.g. {"jimmy", "as", "[quote]"} **/
-
-                    // shorthand aliasing (select a b)
+                        // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2], "Improper column aliasing. Did you forget a comma?");
-                        //Console.WriteLine("Improper column aliasing on line " + this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2].GetLineNumber() + ". Did you forget a comma?");
+                        throw new SelectClauseException("Improper column aliasing. Did you forget a comma?", this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2]);
 
-                    // no columns specified (e.g. "select from" or "select , from")
-                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "select")
-                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "'select' has no columns.");
+                    // no columns specified (e.g. "select from")
+                    else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex - 1].GetText() == "select")
+                        throw new SelectClauseException("'select' has no columns.", this.selectTokens[selectTokenIndex - 1]);
 
                     // trailing commas such as "select wh_id, from"
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "from")
-                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Trailing comma.");
+                        throw new SelectClauseException("Trailing comma.", this.selectTokens[selectTokenIndex - 1]);
 
                     // repeated commas such as "select wh_id,,,"
                     else if (tokenBuffer.Count() == 0)
-                        ErrorMessage.PrintError(this.selectTokens[selectTokenIndex - 1], "Repeated commas.");
+                        throw new SelectClauseException("Repeated commas.", this.selectTokens[selectTokenIndex - 1]);
 
                     tokenBuffer.Clear();
                 }
