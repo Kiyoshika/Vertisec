@@ -31,8 +31,6 @@ namespace Vertisec.Clauses.SelectClause
             Token beginningToken = tokensCopy[0];
             foreach (Token token in tokensCopy)
             {
-                // transfer tokens from "main" token pool to this select clause
-                tokens.Remove(token);
                 this.selectTokens.Add(token);
 
                 if (token.GetText() == "from")
@@ -40,7 +38,7 @@ namespace Vertisec.Clauses.SelectClause
 
             }
 
-            throw new SelectClauseException("'from' token for 'select' not found.", beginningToken);
+            throw new SyntaxException("'from' token for 'select' not found.", beginningToken);
         }
 
         private void ValidAliasing()
@@ -79,23 +77,23 @@ namespace Vertisec.Clauses.SelectClause
 
                     // regular aliasing (select a as b)
                     if (asToken != null && tokenBuffer.IndexOf(asToken) != 1 && tokenBuffer.Count() == 3)
-                        throw new SelectClauseException("Improper column aliasing with 'as'.", this.selectTokens[selectTokenIndex - 1]);
+                        throw new SyntaxException("Improper column aliasing with 'as'.", this.selectTokens[selectTokenIndex - 1]);
 
                         // shorthand aliasing (select a b)
                     else if (asToken == null && tokenBuffer.Count() > 2 || tokenBuffer.Count() > 3)
-                        throw new SelectClauseException("Improper column aliasing. Did you forget a comma?", this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2]);
+                        throw new SyntaxException("Improper column aliasing. Did you forget a comma?", this.selectTokens[selectTokenIndex - tokenBuffer.Count() + 2]);
 
                     // no columns specified (e.g. "select from")
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex - 1].GetText() == "select")
-                        throw new SelectClauseException("'select' has no columns.", this.selectTokens[selectTokenIndex - 1]);
+                        throw new SyntaxException("'select' has no columns.", this.selectTokens[selectTokenIndex - 1]);
 
                     // trailing commas such as "select wh_id, from"
                     else if (tokenBuffer.Count() == 0 && this.selectTokens[selectTokenIndex].GetText() == "from")
-                        throw new SelectClauseException("Trailing comma.", this.selectTokens[selectTokenIndex - 1]);
+                        throw new SyntaxException("Trailing comma.", this.selectTokens[selectTokenIndex - 1]);
 
                     // repeated commas such as "select wh_id,,,"
                     else if (tokenBuffer.Count() == 0)
-                        throw new SelectClauseException("Repeated commas.", this.selectTokens[selectTokenIndex - 1]);
+                        throw new SyntaxException("Repeated commas.", this.selectTokens[selectTokenIndex - 1]);
 
                     tokenBuffer.Clear();
                 }
