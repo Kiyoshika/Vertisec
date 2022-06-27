@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Vertisec.Tokens;
 using Vertisec.Errors;
+using Vertisec.Exceptions;
 
 namespace Vertisec.Parsers
 {
@@ -30,7 +31,7 @@ namespace Vertisec.Parsers
                     parenthesisTuple = new Tuple<List<Token>, int>(innerTokens, tokenCounter);
                     return parenthesisTuple;
                 }
-                else
+                else if (tokens[i].GetText() != "(" && tokens[i].GetText() != ")")
                 {
                     innerTokens.Add(tokens[i]);
                     tokenCounter++;
@@ -38,7 +39,7 @@ namespace Vertisec.Parsers
             }
 
             if (parenthesisCounter != 0)
-                ErrorMessage.PrintError(tokens[tokenIndex], "Missing closing parenthesis");
+                throw new SyntaxException("Missing closing parenthesis.", tokens[tokenIndex]);
 
             return parenthesisTuple = new Tuple<List<Token>, int>(null, 0); // empty tuple
         }
@@ -70,7 +71,7 @@ namespace Vertisec.Parsers
             }
 
             if (parenthesisCounter != 0)
-                ErrorMessage.PrintError(tokens[tokenIndex], "Missing opening parenthesis");
+                throw new SyntaxException("Missing opening parenthesis.", tokens[tokenIndex]);
 
             return parenthesisTuple = new Tuple<List<Token>, int>(null, 0); // empty tuple
         }

@@ -5,7 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Vertisec.Tokens;
-using Vertisec.Errors;
+using Vertisec.Exceptions;
+using Vertisec.Parsers;
+using Vertisec.Clauses.SelectClause;
 
 namespace Vertisec.Clauses.WhereClause
 {
@@ -42,7 +44,7 @@ namespace Vertisec.Clauses.WhereClause
         // take token buffer and rearrange tokens if the logical was misplaced
         // e.g. "= a b" --> "a = b"
         // logical token will be in middle, left/right tokens will be in 0/2 index respectively.
-        private string[] rearrangedTokens(List<Token> tokenBuffer, HashSet<string> conditionalTokens)
+        private string[] RearrangedTokens(List<Token> tokenBuffer, HashSet<string> conditionalTokens)
         {
             string[] tokens = new string[3];
 
@@ -79,55 +81,66 @@ namespace Vertisec.Clauses.WhereClause
             return tokens;
         }
 
-        //
-        //
-        // TODO: fix multiple conditions (e.g. chaining with and & or)
-        //
-        //
-        private void ValidateConditions()
+        private void ParseCondition(List<Token> tokens)
         {
-            int whereTokenIndex = 0;
             List<Token> tokenBuffer = new List<Token>();
+            int tokenIndex = 0;
 
-            // NOTE: need the extra +1 to build the token buffer of 3 in case there are exactly 3 tokens
-            for (int i = 0; i < this.whereTokens.Count(); ++i)
+            for (int i = 0; i < tokens.Count(); ++i)
             {
 
                 // skip "where" token
-                if (this.whereTokens[i].GetText() == "where")
+                if (tokens[i].GetText() == "where")
                 {
-                    whereTokenIndex++;
+                    tokenIndex++;
                     continue;
                 };
 
                 // add non-chaining words (and + or) to the token buffer
-                if (!this.conditionChainWords.Contains(this.whereTokens[i].GetText()))
-                    tokenBuffer.Add(this.whereTokens[i]);
+                if (!this.conditionChainWords.Contains(tokens[i].GetText()))
+                    tokenBuffer.Add(tokens[i]);
 
-                if (this.whereTokens[i].GetText() == "and" || this.whereTokens[i].GetText() == "or" || i == this.whereTokens.Count() - 1)
+                // parenthesis parsing, e.g. where x in (select ... ) or where (x = 5 and y < 3) or ...
+                if (tokens[i].GetText() == "(")
+                {
+                    Tuple<List<Token>, int> parenthesis = ParenthesisParser.Parse(tokens, i, '(');
+                    ParseInnerParenthesis(parenthesis.Item1);
+                    tokenIndex += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
+                    i += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
+                }
+
+                // quote parsing e.g. where x like 'wild%'
+                else if (tokens[i].GetText() == "'" || tokens[i].GetText() == "\"")
+                {
+                    int quoteLen = QuoteParser.Parse(tokens, i);
+                    tokenIndex += quoteLen + 1; // extra +1 to skip end quote
+                    i += quoteLen + 1; // extra +1 to skip end quote
+                }
+
+                // for each chaining keyword (or end of condition), check token buffer to validate correct syntax
+                else if (tokens[i].GetText() == "and" || tokens[i].GetText() == "or" || i == tokens.Count() - 1)
                 {
                     // negated conditions "A not like B"
-                    // only special case are parenthesis which we'll worry about later...
                     if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
                     {
                         if (tokenBuffer[1].GetText() != "not")
-                            ErrorMessage.PrintError(tokenBuffer[1], "Negation token 'not' is in the incorrect position.");
+                            throw new SyntaxException("Negation token 'not' is in the incorrect position.", tokenBuffer[1]);
                         else
                         {
                             if (!wordConditionalTokens.Contains(tokenBuffer[2].GetText())) // avoiding "not not"
-                                ErrorMessage.PrintError(tokenBuffer[2], "Invalid negation condition. Expecing 'not like', 'not ilike', 'not in', etc.");
+                                throw new SyntaxException("Invalid negation condition. Expecting 'not like', 'not ilike', 'not in', etc.", tokenBuffer[2]);
                             if (tokenBuffer[2].GetText() == "not")
-                                ErrorMessage.PrintError(tokenBuffer[2], "Double negative 'not not'. Expecting 'not like', 'not ilike', 'not in', etc.");
+                                throw new SyntaxException("Double negative 'not not'. Expecting 'not like', 'not ilike', 'not in', etc.", tokenBuffer[2]);
                         }
                     }
 
                     else if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") == null)
-                        ErrorMessage.PrintError(this.whereTokens[i], "Condition too long. Are you missing 'and' or 'or'?");
+                        throw new SyntaxException("Condition too long. Are you missing 'and' or 'or'?", tokens[i]);
 
                     else if (tokenBuffer.Count() == 3 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
                     {
                         Token notToken = tokenBuffer.Find(tok => tok.GetText() == "not");
-                        ErrorMessage.PrintError(notToken, "Incomplete negation condition. Expecting 'not like', 'not ilike', 'not in', etc.");
+                        throw new SyntaxException("Incomplete negation condition. Expecting 'not like', 'not ilike', 'not in', etc.", notToken);
                     }
 
                     // standard conditions (three tokens) -- A = B
@@ -145,36 +158,67 @@ namespace Vertisec.Clauses.WhereClause
                         }
 
                         if (mathLogicalCount + wordLogicalCount > 1)
-                            ErrorMessage.PrintError(tokenBuffer[0], "Too many logicals in condition. Only expecting one logical (=, >, like, etc.) per condition.");
+                            throw new SyntaxException("Too many logicals in condition. Only expecting one logical (=, >, like, etc.) per condition.", tokenBuffer[0]);
 
                         // logical should be in middle of condition (e.g A = B)
                         if (mathLogicalCount == 1 && !mathConditionalTokens.Contains(tokenBuffer[1].GetText()))
                         {
-                            string[] _rearrangedTokens = rearrangedTokens(tokenBuffer, mathConditionalTokens);
-                            ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?");
+                            string[] _rearrangedTokens = RearrangedTokens(tokenBuffer, mathConditionalTokens);
+                            throw new SyntaxException("Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?", tokenBuffer[1]);
                         }
                         else if (wordLogicalCount == 1 && !wordConditionalTokens.Contains(tokenBuffer[1].GetText()))
                         {
-                            string[] _rearrangedTokens = rearrangedTokens(tokenBuffer, wordConditionalTokens);
-                            ErrorMessage.PrintError(tokenBuffer[1], "Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?");
+                            string[] _rearrangedTokens = RearrangedTokens(tokenBuffer, wordConditionalTokens);
+                            throw new SyntaxException("Misplaced logical. Did you mean '" + _rearrangedTokens[0] + " " + _rearrangedTokens[1] + " " + _rearrangedTokens[2] + "'?", tokenBuffer[1]);
                         }
-
                         // validate correct logicals being used, e.g A = B instead of A == B
                         else if (wordLogicalCount == 0 && mathLogicalCount == 0)
-                            ErrorMessage.PrintError(tokenBuffer[1], "Incorrect logical expression. Expecting '=', '<', '<=', etc.");
+                            throw new SyntaxException("Incorrect logical expression. Expecting '=', '<', '<=', etc.", tokenBuffer[1]);
 
                         tokenBuffer.Clear();
                         //whereTokenIndex++;
                     }
 
                     else if (tokenBuffer.Count() < 3)
-                        ErrorMessage.PrintError(this.whereTokens[i], "Condition too short.");
+                        throw new SyntaxException("Condition too short.", tokens[i]);
 
                     tokenBuffer.Clear();
                 }
                 else if (tokenBuffer.Count() > 4)
-                    ErrorMessage.PrintError(this.whereTokens[i], "Condition too long.");
+                    throw new SyntaxException("Condition too long.", tokens[i]);
             }
+        }
+
+        private void ParseInnerParenthesis(List<Token> innerTokens)
+        {
+            bool containsConditional = false;
+
+            if (innerTokens[0].GetText() == "select")
+            {
+                // call SelectClause parser
+                SelectClause.SelectClause sc = new SelectClause.SelectClause();
+                sc.BuildClause(innerTokens, 0);
+                return;
+            }
+
+            foreach (Token _token in innerTokens)
+            {
+                if (mathConditionalTokens.Contains(_token.GetText()) || wordConditionalTokens.Contains(_token.GetText()))
+                {
+                    containsConditional = true;
+                    break;
+                }
+            }
+
+            if (containsConditional)
+                ParseCondition(innerTokens);
+            else
+                throw new SyntaxException("Invalid inner expression. Expecting subquery or valid logicals such as x = y.", innerTokens[0]);
+        }
+
+        private void ValidateConditions()
+        {
+            ParseCondition(this.whereTokens);
         }
 
         public override List<Token> GetTokens()

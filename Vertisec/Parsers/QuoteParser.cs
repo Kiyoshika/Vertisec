@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 using Vertisec.Util;
 using Vertisec.Tokens;
-using Vertisec.Errors;
+using Vertisec.Exceptions;
 using Vertisec;
 
 
@@ -26,7 +26,8 @@ namespace Vertisec.Parsers
                 quoteLength++;
             }
             
-            ErrorMessage.PrintError(beginQuote, "Missing end quote.");
+            throw new SyntaxException("Missing end quote.", beginQuote);
+
             return 0;
         }
     }

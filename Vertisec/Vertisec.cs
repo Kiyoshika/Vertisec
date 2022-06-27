@@ -59,19 +59,19 @@ namespace Vertisec
 
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        i += selectClause.BuildClause(this.tokens, i);
+                        i += selectClause.BuildClause(tokensCopy, i);
                         clauses.Add(selectClause);
                         break;
 
                     case "from":
                         FromClause fromClause = new FromClause();
-                        i += fromClause.BuildClause(tokens, i);
+                        i += fromClause.BuildClause(tokensCopy, i);
                         clauses.Add(fromClause);
                         break;
 
                     case "where":
                         WhereClause whereClause = new WhereClause();
-                        i += whereClause.BuildClause(this.tokens, i);
+                        i += whereClause.BuildClause(tokensCopy, i);
                         clauses.Add(whereClause);
                         break;
 
