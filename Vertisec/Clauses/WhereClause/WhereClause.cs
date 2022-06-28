@@ -104,7 +104,7 @@ namespace Vertisec.Clauses.WhereClause
                 if (tokens[i].GetText() == "(")
                 {
                     Tuple<List<Token>, int> parenthesis = ParenthesisParser.Parse(tokens, i, '(');
-                    ParseInnerParenthesis(parenthesis.Item1);
+                    ParseInnerParenthesis(parenthesis.Item1, tokenBuffer);
                     tokenIndex += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
                     i += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
                 }
@@ -189,7 +189,35 @@ namespace Vertisec.Clauses.WhereClause
             }
         }
 
-        private void ParseInnerParenthesis(List<Token> innerTokens)
+        private void ValidateListValues(List<Token> innerTokens)
+        {
+            int tokenCounter = 0, commaCounter = 0;
+
+            // validate that it's a proper CSV list of values, e.g. (1,2,3)
+            for (int i = 0; i < innerTokens.Count(); ++i)
+            {
+                if (innerTokens[i].GetText() == "'" || innerTokens[i].GetText() == "\"")
+                {
+                    i += QuoteParser.Parse(innerTokens, i);
+                    tokenCounter++;
+                }
+                else if (innerTokens[i].GetText() == ",")
+                    commaCounter++;
+                else
+                {
+                    tokenCounter++;
+                    if (tokenCounter == commaCounter + 2)
+                        throw new SyntaxException("Too many tokens between commas. Are you forgetting a comma?", innerTokens[i]);
+                }
+            }
+
+            if (tokenCounter <= commaCounter)
+                throw new SyntaxException("Too many commas in list.", innerTokens[innerTokens.Count - 1]);
+            else if (tokenCounter != commaCounter + 1)
+                throw new SyntaxException("Invalid list of values. Expecting format such as (1,2,3).", innerTokens[0]);
+        }
+
+        private void ParseInnerParenthesis(List<Token> innerTokens, List<Token> tokenBuffer)
         {
             bool containsConditional = false;
 
@@ -212,8 +240,8 @@ namespace Vertisec.Clauses.WhereClause
 
             if (containsConditional)
                 ParseCondition(innerTokens);
-            else
-                throw new SyntaxException("Invalid inner expression. Expecting subquery or valid logicals such as x = y.", innerTokens[0]);
+            else if (tokenBuffer.Find(tok => tok.GetText() == "in") != null) // if tokenBuffer contains "(not) in", then validate list of values
+                    ValidateListValues(innerTokens);
         }
 
         private void ValidateConditions()
