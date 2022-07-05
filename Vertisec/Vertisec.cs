@@ -59,7 +59,8 @@ namespace Vertisec
 
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        i += selectClause.BuildClause(tokensCopy, i);
+                        i += (selectClause.BuildClause(tokensCopy, i) - 2);
+						Console.WriteLine(tokensCopy[i].GetText());
                         clauses.Add(selectClause);
                         break;
 
