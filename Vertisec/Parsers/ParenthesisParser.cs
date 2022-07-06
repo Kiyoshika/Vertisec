@@ -21,6 +21,9 @@ namespace Vertisec.Parsers
 
             for (int i = tokenIndex; i < tokens.Count(); ++i)
             {
+                innerTokens.Add(tokens[i]);
+                tokenCounter++;
+
                 if (tokens[i].GetText() == "(")
                     parenthesisCounter++;
                 else if (tokens[i].GetText() == ")")
@@ -31,11 +34,7 @@ namespace Vertisec.Parsers
                     parenthesisTuple = new Tuple<List<Token>, int>(innerTokens, tokenCounter);
                     return parenthesisTuple;
                 }
-                else if (tokens[i].GetText() != "(" && tokens[i].GetText() != ")")
-                {
-                    innerTokens.Add(tokens[i]);
-                    tokenCounter++;
-                }
+
             }
 
             if (parenthesisCounter != 0)

@@ -21,12 +21,19 @@ namespace Vertisec
         private List<Token> tokens;
         public List<Token> tokens_copy;
         public List<Clauses.Clauses> clauses = new List<Clauses.Clauses>();
+
+        public Vertisec() { }
         public Vertisec(string filepath)
         {
             ReadFile file = new ReadFile(filepath);
             string[] sqlLines = file.Read();
             Globals.SetOriginalSQL(sqlLines);
             tokens = Tokenizer.Tokenize(sqlLines);
+        }
+        
+        public void SetTokens(List<Token> tokens)
+        {
+            this.tokens = tokens;
         }
 
         public void BuildClauses()
@@ -59,7 +66,7 @@ namespace Vertisec
 
                     case "select":
                         SelectClause selectClause = new SelectClause();
-                        i += selectClause.BuildClause(tokensCopy, i);
+                        i += (selectClause.BuildClause(tokensCopy, i) - 2);
                         clauses.Add(selectClause);
                         break;
 
