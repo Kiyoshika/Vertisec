@@ -13,6 +13,7 @@ namespace Vertisec.Clauses.WhereClause
 {
     internal class WhereClause : Clauses
     {
+        private bool parenthesisChain = false;
         private List<Token> whereTokens = new List<Token>();
         private HashSet<string> stopTokens = new HashSet<string>
         {
@@ -97,7 +98,8 @@ namespace Vertisec.Clauses.WhereClause
                 };
 
                 // add non-chaining words (and + or) to the token buffer
-                if (!this.conditionChainWords.Contains(tokens[i].GetText()))
+                // don't add parenthesis to token buffer
+                if (!this.conditionChainWords.Contains(tokens[i].GetText()) && !(tokens[i].GetText() == ")" || tokens[i].GetText() == "("))
                     tokenBuffer.Add(tokens[i]);
 
                 // parenthesis parsing, e.g. where x in (select ... ) or where (x = 5 and y < 3) or ...
@@ -109,7 +111,8 @@ namespace Vertisec.Clauses.WhereClause
                     parenthesis.Item1.RemoveAt(parenthesis.Item1.Count() - 1);
                     ParseInnerParenthesis(parenthesis.Item1, tokenBuffer);
                     tokenIndex += parenthesis.Item2; 
-                    i += parenthesis.Item2; 
+                    i += parenthesis.Item2;
+                    parenthesisChain = true;
                 }
 
                 // quote parsing e.g. where x like 'wild%'
@@ -123,8 +126,15 @@ namespace Vertisec.Clauses.WhereClause
                 // for each chaining keyword (or end of condition), check token buffer to validate correct syntax
                 else if (tokens[i].GetText() == "and" || tokens[i].GetText() == "or" || i == tokens.Count() - 1)
                 {
+                    // if we just parsed a parenthesis and a chain keyword appears after, e.g. (x = 5) and ...
+                    if (parenthesisChain)
+                    {
+                        parenthesisChain = false;
+                        continue;
+                    }
+
                     // negated conditions "A not like B"
-                    if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
+                    else if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
                     {
                         if (tokenBuffer[1].GetText() != "not")
                             throw new SyntaxException("Negation token 'not' is in the incorrect position.", tokenBuffer[1]);
@@ -241,10 +251,15 @@ namespace Vertisec.Clauses.WhereClause
                 }
             }
 
-            if (containsConditional)
+            if (tokenBuffer.Find(tok => tok.GetText() == "in") != null) // if tokenBuffer contains "(not) in", then validate list of values
+                ValidateListValues(innerTokens);
+            else if (containsConditional)
+                ParseCondition(innerTokens);
+            
+            /*if (containsConditional)
                 ParseCondition(innerTokens);
             else if (tokenBuffer.Find(tok => tok.GetText() == "in") != null) // if tokenBuffer contains "(not) in", then validate list of values
-                    ValidateListValues(innerTokens);
+                ValidateListValues(innerTokens);*/
         }
 
         private void ValidateConditions()
