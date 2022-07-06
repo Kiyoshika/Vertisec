@@ -104,9 +104,12 @@ namespace Vertisec.Clauses.WhereClause
                 if (tokens[i].GetText() == "(")
                 {
                     Tuple<List<Token>, int> parenthesis = ParenthesisParser.Parse(tokens, i, '(');
+                    // remove open and close parenthesis
+                    parenthesis.Item1.RemoveAt(0);
+                    parenthesis.Item1.RemoveAt(parenthesis.Item1.Count() - 1);
                     ParseInnerParenthesis(parenthesis.Item1, tokenBuffer);
-                    tokenIndex += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
-                    i += parenthesis.Item2 + 1; // extra +1 to skip closing parenthesis
+                    tokenIndex += parenthesis.Item2; 
+                    i += parenthesis.Item2; 
                 }
 
                 // quote parsing e.g. where x like 'wild%'
