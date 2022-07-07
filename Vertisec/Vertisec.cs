@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Vertisec.Tokens;
 using Vertisec.FileIO;
 using Vertisec.Clauses;
+using Vertisec.Exceptions;
 using Vertisec.Util;
 using Vertisec.Parsers;
 using Vertisec.Clauses.SelectClause;
@@ -36,7 +37,8 @@ namespace Vertisec
             this.tokens = tokens;
         }
 
-        public void BuildClauses()
+        // the referenceToken is used to fetch the last token in case there is an error (e.g., an empty derived table "select from () x")
+        public void BuildClauses(Token? referenceToken = null)
         {
             List<Token> tokensCopy = this.tokens.ToList<Token>();
             this.tokens_copy = tokensCopy;
@@ -47,7 +49,10 @@ namespace Vertisec
                     validStartToken = true;
 
             if (!validStartToken)
-                InternalErrorMessage.PrintError("SQL file missing starting keyword drop, create, with, select");
+                if (referenceToken != null)
+                    throw new SyntaxException("Missing starting keyword: drop, create, with, select", referenceToken);
+                else
+                    InternalErrorMessage.PrintError("Missing starting keyword: drop, create, with, select");
 
             //foreach (Token token in tokensCopy)
             for (int i = 0; i < tokensCopy.Count(); i++)

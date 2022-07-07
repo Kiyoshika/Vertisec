@@ -14,8 +14,9 @@ using Vertisec;
 
 namespace Vertisec.Clauses.FromClause
 {
-    internal class FromClause : Clauses
+    public class FromClause : Clauses
     {
+        private Token fromToken; // used to fetch "from" token if no table is specified (i.e., fromTokens = {})
         private List<Token> fromTokens = new List<Token>();
         private HashSet<string> stopTokens = new HashSet<string>
         {
@@ -35,16 +36,27 @@ namespace Vertisec.Clauses.FromClause
 
         private void ValidPull()
         {
+            if (this.fromTokens.Count() == 0)
+                throw new SyntaxException("Missing table for 'from' token.", fromToken);
+
             Token openParenthesis = this.fromTokens.Find(tok => tok.GetText() == "(");
             if (openParenthesis != null)
             {
                 int startIndex = this.fromTokens.IndexOf(openParenthesis);
                 Tuple<List<Token>, int> parens = ParenthesisParser.Parse(this.fromTokens, startIndex, '(');
 
+                // remove front and back parenthesis
+                parens.Item1.RemoveAt(0);
+                parens.Item1.RemoveAt(parens.Item1.Count() - 1);
+
+                // if parenthesis are empty, this is an empty derived table
+                if (parens.Item1.Count() == 0)
+                    throw new SyntaxException("Derived table is empty.", this.fromTokens[0]);
+
                 // ensure inner tokens is valid SQL
                 Vertisec vertisec = new Vertisec();
                 vertisec.SetTokens(parens.Item1);
-                vertisec.BuildClauses();
+                vertisec.BuildClauses(parens.Item1[0]);
 
                 this.fromTokens.RemoveRange(startIndex, parens.Item2); // remove all the inner parenthesis
                 Token psuedoTable = new Token("derived_table", openParenthesis.GetLineNumber());
@@ -96,6 +108,8 @@ namespace Vertisec.Clauses.FromClause
         public override int BuildClause(List<Token> tokens, int startIndex)
         {
             int totalFromTokens = 0;
+            fromToken = tokens[startIndex];
+
             for (int i = startIndex + 1; i < tokens.Count; ++i) // the + 1 automatically skips "from" token
             {
                 if (tokens[i].GetText() == "(")
@@ -110,11 +124,15 @@ namespace Vertisec.Clauses.FromClause
                 }
 
 //                if (tokens[i].GetText() == ")") break; // at the end of a derived table
+           
+                // if index increment after parenthesis reaches end of token list, want to avoid out of bounds indices
+                if (i < tokens.Count())
+                {
+                    if (stopTokens.Contains(tokens[i].GetText())) break;
 
-                if (stopTokens.Contains(tokens[i].GetText())) break;
-
-                this.fromTokens.Add(tokens[i]);
-                totalFromTokens++;
+                    this.fromTokens.Add(tokens[i]);
+                    totalFromTokens++;
+                }
             }
 
             ValidPull();
