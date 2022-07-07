@@ -81,5 +81,56 @@ namespace VertisecTests.Clauses
             SyntaxException se = Assert.ThrowsException<SyntaxException>(() => select.BuildClause(tokens, 0));
             Assert.AreEqual(se.Message, "Repeated commas.");
         }
+
+        /*
+         * Below are a set of valid SQL clauses where we make no assertions.
+         * If an exception occurs, the test fails (as these are expected to run successfully)
+         */
+
+        [TestMethod]
+        public void ValidSingleColumn()
+        {
+            string[] sampleSQL = { "select col from table" };
+            Globals.SetOriginalSQL(sampleSQL);
+            List<Token> tokens = Tokenizer.Tokenize(sampleSQL);
+            select.BuildClause(tokens, 0);
+        }
+
+        [TestMethod]
+        public void ValidMultipleColumns()
+        {
+            string[] sampleSQL = { "select col1, col2, col3 from table" };
+            Globals.SetOriginalSQL(sampleSQL);
+            List<Token> tokens = Tokenizer.Tokenize(sampleSQL);
+            select.BuildClause(tokens, 0);
+
+        }
+
+        [TestMethod]
+        public void ValidShortAlias()
+        {
+            string[] sampleSQL = { "select col1 new_col1 from table" };
+            Globals.SetOriginalSQL(sampleSQL);
+            List<Token> tokens = Tokenizer.Tokenize(sampleSQL);
+            select.BuildClause(tokens, 0);
+        }
+
+        [TestMethod]
+        public void ValidLongAlias()
+        {
+            string[] sampleSQL = { "select col1 as new_col1 from table" };
+            Globals.SetOriginalSQL(sampleSQL);
+            List<Token> tokens = Tokenizer.Tokenize(sampleSQL);
+            select.BuildClause(tokens, 0);
+        }
+
+        [TestMethod]
+        public void ValidMixedNoShortAndLongAlias()
+        {
+            string[] sampleSQL = { "select col1, col2 new_col2, co3 as new_col3 from table" };
+            Globals.SetOriginalSQL(sampleSQL);
+            List<Token> tokens = Tokenizer.Tokenize(sampleSQL);
+            select.BuildClause(tokens, 0);
+        }
     }
 }

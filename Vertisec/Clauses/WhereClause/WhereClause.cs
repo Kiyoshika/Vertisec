@@ -11,7 +11,7 @@ using Vertisec.Clauses.SelectClause;
 
 namespace Vertisec.Clauses.WhereClause
 {
-    internal class WhereClause : Clauses
+    public class WhereClause : Clauses
     {
         private bool parenthesisChain = false;
         private List<Token> whereTokens = new List<Token>();
@@ -87,6 +87,9 @@ namespace Vertisec.Clauses.WhereClause
             List<Token> tokenBuffer = new List<Token>();
             int tokenIndex = 0;
 
+            int wordLogicalCount = 0;
+            int mathLogicalCount = 0;
+
             for (int i = 0; i < tokens.Count(); ++i)
             {
 
@@ -102,6 +105,12 @@ namespace Vertisec.Clauses.WhereClause
                 if (!this.conditionChainWords.Contains(tokens[i].GetText()) && !(tokens[i].GetText() == ")" || tokens[i].GetText() == "("))
                     tokenBuffer.Add(tokens[i]);
 
+                if (wordConditionalTokens.Contains(tokens[i].GetText()))
+                    wordLogicalCount++;
+
+                if (mathConditionalTokens.Contains(tokens[i].GetText()))
+                    mathLogicalCount++;
+
                 // parenthesis parsing, e.g. where x in (select ... ) or where (x = 5 and y < 3) or ...
                 if (tokens[i].GetText() == "(")
                 {
@@ -110,10 +119,14 @@ namespace Vertisec.Clauses.WhereClause
                     parenthesis.Item1.RemoveAt(0);
                     parenthesis.Item1.RemoveAt(parenthesis.Item1.Count() - 1);
                     ParseInnerParenthesis(parenthesis.Item1, tokenBuffer);
-                    tokenIndex += parenthesis.Item2; 
+                    tokenIndex += parenthesis.Item2;
                     i += parenthesis.Item2;
                     parenthesisChain = true;
                 }
+
+                // hanging open parenthesis
+                else if (tokens[i].GetText() == ")")
+                    throw new SyntaxException("Missing open parenthesis.", tokens[i]);
 
                 // quote parsing e.g. where x like 'wild%'
                 else if (tokens[i].GetText() == "'" || tokens[i].GetText() == "\"")
@@ -121,6 +134,18 @@ namespace Vertisec.Clauses.WhereClause
                     int quoteLen = QuoteParser.Parse(tokens, i);
                     tokenIndex += quoteLen + 1; // extra +1 to skip end quote
                     i += quoteLen + 1; // extra +1 to skip end quote
+                }
+
+                // too many logicals in condition
+                else if (wordLogicalCount + mathLogicalCount > 1)
+                {
+                    // only special case is "not like" or "not in"
+                    Token notToken = this.whereTokens.Find(tok => tok.GetText() == "not");
+                    int notTokenIndex = this.whereTokens.IndexOf(notToken);
+                    if (!(notToken != null 
+                            && notTokenIndex != this.whereTokens.Count() - 1 
+                            && (this.whereTokens[notTokenIndex + 1].GetText() == "like" || this.whereTokens[notTokenIndex + 1].GetText() == "in")))
+                        throw new SyntaxException("Too many logicals in condition. Only expecting one logical (=, >, like, etc.) per condition.", tokenBuffer[0]);
                 }
 
                 // for each chaining keyword (or end of condition), check token buffer to validate correct syntax
@@ -139,16 +164,9 @@ namespace Vertisec.Clauses.WhereClause
                         if (tokenBuffer[1].GetText() != "not")
                             throw new SyntaxException("Negation token 'not' is in the incorrect position.", tokenBuffer[1]);
                         else
-                        {
                             if (!wordConditionalTokens.Contains(tokenBuffer[2].GetText())) // avoiding "not not"
-                                throw new SyntaxException("Invalid negation condition. Expecting 'not like', 'not ilike', 'not in', etc.", tokenBuffer[2]);
-                            if (tokenBuffer[2].GetText() == "not")
-                                throw new SyntaxException("Double negative 'not not'. Expecting 'not like', 'not ilike', 'not in', etc.", tokenBuffer[2]);
-                        }
+                            throw new SyntaxException("Invalid negation condition. Expecting 'not like', 'not ilike', 'not in', etc.", tokenBuffer[2]);
                     }
-
-                    else if (tokenBuffer.Count() == 4 && tokenBuffer.Find(tok => tok.GetText() == "not") == null)
-                        throw new SyntaxException("Condition too long. Are you missing 'and' or 'or'?", tokens[i]);
 
                     else if (tokenBuffer.Count() == 3 && tokenBuffer.Find(tok => tok.GetText() == "not") != null)
                     {
@@ -160,18 +178,6 @@ namespace Vertisec.Clauses.WhereClause
                     // only special case are parenthesis which we'll worry about later...
                     else if (tokenBuffer.Count() == 3 && tokenBuffer.Find(tok => tok.GetText() == "not") == null)
                     {
-                        int mathLogicalCount = 0, wordLogicalCount = 0;
-
-                        foreach (Token _token in tokenBuffer)
-                        {
-                            if (mathConditionalTokens.Contains(_token.GetText()))
-                                mathLogicalCount++;
-                            if (wordConditionalTokens.Contains(_token.GetText()))
-                                wordLogicalCount++;
-                        }
-
-                        if (mathLogicalCount + wordLogicalCount > 1)
-                            throw new SyntaxException("Too many logicals in condition. Only expecting one logical (=, >, like, etc.) per condition.", tokenBuffer[0]);
 
                         // logical should be in middle of condition (e.g A = B)
                         if (mathLogicalCount == 1 && !mathConditionalTokens.Contains(tokenBuffer[1].GetText()))
@@ -196,9 +202,11 @@ namespace Vertisec.Clauses.WhereClause
                         throw new SyntaxException("Condition too short.", tokens[i]);
 
                     tokenBuffer.Clear();
+                    wordLogicalCount = 0;
+                    mathLogicalCount = 0;
                 }
                 else if (tokenBuffer.Count() > 4)
-                    throw new SyntaxException("Condition too long.", tokens[i]);
+                    throw new SyntaxException("Condition too long. Are you missing 'and' or 'or'?", tokens[i]);
             }
         }
 
@@ -274,6 +282,8 @@ namespace Vertisec.Clauses.WhereClause
 
         public override int BuildClause(List<Token> tokens, int startIndex)
         {
+            this.whereTokens.Clear();
+
             for (int i = startIndex; i < tokens.Count; ++i)
             {
                 if (stopTokens.Contains(tokens[i].GetText())) break;
